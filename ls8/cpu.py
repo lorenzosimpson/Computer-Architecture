@@ -14,6 +14,7 @@ class CPU:
             0b10000010: self.ldi,
             0b01000111: self.prn,
             0b00000001: self.hlt,
+            0b10100010: self.mul,
 
         }
         
@@ -32,26 +33,32 @@ class CPU:
         self.alu('MUL', op1, op2)
         return (3, True)
 
-    def load(self):
+    def load(self, program):
         """Load a program into memory."""
 
         address = 0
 
         # For now, we've just hardcoded a program:
 
-        program = [
-            # From print8.ls8
-            0b10000010, # LDI R0,8
-            0b00000000,
-            0b00001000,
-            0b01000111, # PRN R0
-            0b00000000,
-            0b00000001, # HLT
-        ]
+        # TODO read from print.ls8
 
-        for instruction in program:
-            self.ram[address] = instruction
-            address += 1
+        with open(program) as f:
+
+            for line in f:
+                # takes the binary number before the comment and removes whitespace
+                cmd = line.split('#')[0].strip() 
+
+                try:
+                    self.ram_write(int(cmd, 2), address) # 2 is BASE 2
+                    address += 1
+                except ValueError:
+                    pass
+                
+            for instruction in program:
+                self.ram[address] = instruction
+                address += 1
+        
+        f.close()
 
     def ram_read(self, address):
         return self.ram[address]
@@ -63,7 +70,9 @@ class CPU:
         """ALU operations."""
 
         if op == "ADD":
-            self.reg[reg_a] += self.reg[reg_b]
+            self.registers[reg_a] += self.registers[reg_b]
+        elif op == "MUL":
+            self.registers[reg_a] *= self.registers[reg_b]
         #elif op == "SUB": etc
         else:
             raise Exception("Unsupported ALU operation")
@@ -91,7 +100,6 @@ class CPU:
     def run(self):
         """Run the CPU."""
         running = True
-        
 
         while running:
             instruction = self.ram[self.pc]
