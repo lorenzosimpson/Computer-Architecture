@@ -15,8 +15,9 @@ class CPU:
             0b01000111: self.prn,
             0b00000001: self.hlt,
             0b10100010: self.mul,
-
+            # 0b01000101: self.push,
         }
+        self.stack_pointer = registers[7]
         
     def ldi(self, op1, op2):
         self.registers[op1] = op2
@@ -32,6 +33,9 @@ class CPU:
     def mul(self, op1, op2):
         self.alu('MUL', op1, op2)
         return (3, True)
+    
+    # def push(self, op1, op2):
+
 
     def load(self, program):
         """Load a program into memory."""
@@ -115,4 +119,3 @@ class CPU:
             except:
                 print('Error: unknown input')
                 sys.exit()
-
