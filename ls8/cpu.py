@@ -9,16 +9,28 @@ class CPU:
         """Construct a new CPU."""
         self.ram = [0] * 256
         self.registers = [0] * 8
-        self.pc = self.registers[0]
+        self.pc = 0
+        self.registers[7] = 0xf4
+        self.stack_pointer = self.registers[7]
         self.ir = {
             0b10000010: self.ldi,
             0b01000111: self.prn,
             0b00000001: self.hlt,
             0b10100010: self.mul,
-
+            0b01000101: self.push,
+            0b01000110: self.pop
         }
-        self.registers[7] = 0xf4
-        self.stack_pointer = self.registers[7]
+
+    def push(self, op1, op2):
+        # op1 will be the register
+        self.stack_pointer -= 1
+        self.ram[self.stack_pointer] = self.registers[op1]
+        return (2, True)
+
+    def pop(self, op1, op2):
+        self.registers[op1] = self.ram[self.stack_pointer]
+        self.stack_pointer += 1
+        return (2, True)
         
     def ldi(self, op1, op2):
         self.registers[op1] = op2
