@@ -18,11 +18,23 @@ class CPU:
             0b00000001: self.hlt,
             0b10100010: self.mul,
             0b01000101: self.push,
-            0b01000110: self.pop
+            0b01000110: self.pop,
+            0b01010000: self.call,
+            0b00010001: self.ret,
+            0b10100000: self.add
         }
 
+    def call(self, op1, op2):
+        self.stack_pointer -= 1
+        self.ram[self.stack_pointer] = self.pc + 2
+        self.pc = self.registers[op1]
+        return (0, True)
+
+    def ret(self, op1, op2):
+        self.pc = self.ram[self.stack_pointer]
+        return (0, True)
+        
     def push(self, op1, op2):
-        # op1 will be the register
         self.stack_pointer -= 1
         self.ram[self.stack_pointer] = self.registers[op1]
         return (2, True)
@@ -52,10 +64,6 @@ class CPU:
 
         address = 0
 
-        # For now, we've just hardcoded a program:
-
-        # TODO read from print.ls8
-
         with open(program) as f:
 
             for line in f:
@@ -79,6 +87,10 @@ class CPU:
     
     def ram_write(self, value, address):
         self.ram[address] = value
+    
+    def add(self, op1, op2):
+        self.alu('ADD', op1, op2)
+        return (3, True)
 
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
