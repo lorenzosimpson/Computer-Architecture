@@ -12,6 +12,11 @@ class CPU:
         self.pc = 0
         self.registers[7] = 0xf4
         self.stack_pointer = self.registers[7]
+        self.flags = {
+            'E': 0,
+            'G': 0,
+            'L': 0,
+        }
         self.ir = {
             0b10000010: self.ldi,
             0b01000111: self.prn,
@@ -21,8 +26,35 @@ class CPU:
             0b01000110: self.pop,
             0b01010000: self.call,
             0b00010001: self.ret,
-            0b10100000: self.add
+            0b10100000: self.add,
+            0b10100111: self.comp,
+            0b01010100: self.jmp,
+            0b01010101: self.jeq,
+            0b01010110: self.jne,
         }
+    
+    def comp(self, op1, op2):
+        self.alu('CMP', op1, op2)
+        return (3, True)
+
+    def jne(self, op1, op2):
+        if self.flags['E'] == 0:
+            self.pc = self.registers[op1]
+            return (0, True)
+        else:
+            return (2, True)
+
+    def jeq(self, op1, op2):
+        if self.flags['E'] == 1:
+            self.pc = self.registers[op1]
+            return (0, True)
+        else:
+            return (2, True)
+
+    def jmp(self, op1, op2):
+        self.pc = self.registers[op1]
+        return (0, True)
+
 
     def call(self, op1, op2):
         self.stack_pointer -= 1
@@ -75,10 +107,11 @@ class CPU:
                     address += 1
                 except ValueError:
                     pass
-                
-            for instruction in program:
-                self.ram[address] = instruction
-                address += 1
+
+            # Starter code - now redundant 
+            # for instruction in program:
+            #     self.ram[address] = instruction
+            #     address += 1
         
         f.close()
 
@@ -99,6 +132,26 @@ class CPU:
             self.registers[reg_a] += self.registers[reg_b]
         elif op == "MUL":
             self.registers[reg_a] *= self.registers[reg_b]
+        elif op == 'CMP':
+            if self.registers[reg_a] < self.registers[reg_b]:
+                #set less than L flag to 1
+                self.flags['L'] = 1
+                # set greater than flag to 0
+                self.flags['G'] = 0
+                # set equal to flag to 0
+                self.flags['E'] = 0
+
+            elif self.registers[reg_a] > self.registers[reg_b]:
+                # set greater than flag to 1
+                self.flags['G'] = 1
+                # set less than flag to 0
+                self.flags['L'] = 0
+                # set equal to flag to 0
+                self.flags['E'] = 0
+            else:
+                # set equal to flag to 1
+                self.flags['E'] = 1
+
         #elif op == "SUB": etc
         else:
             raise Exception("Unsupported ALU operation")
@@ -119,7 +172,7 @@ class CPU:
         ), end='')
 
         for i in range(8):
-            print(" %02X" % self.reg[i], end='')
+            print(" %02X" % self.registers[i], end='')
 
         print()
 
@@ -129,6 +182,7 @@ class CPU:
 
         while running:
             instruction = self.ram[self.pc]
+           
             
             op1 = self.ram_read(self.pc + 1)
             op2 = self.ram_read(self.pc + 2)
