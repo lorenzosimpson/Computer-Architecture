@@ -7,7 +7,30 @@ class CPU:
 
     def __init__(self):
         """Construct a new CPU."""
-        pass
+        self.ram = [None] * 256
+        self.registers = [None] * 8
+        self.instructions = {
+            0b10000010: self.ldi,
+            0b01000111: self.prn,
+            0b00000001: self.hlt
+        }
+
+    def prn(self, op1, op2):
+        print(self.registers[op1])
+        return (2, True)
+    
+    def hlt(self, op1, op2):
+        return (0, False)
+    
+    def ldi(self, op1, op2):
+        self.registers[op1] = op2
+        return (3, True)
+
+    def ram_read(self, address):
+        return self.ram[address]
+    
+    def ram_write(self, address, value):
+        self.ram[address] = value
 
     def load(self):
         """Load a program into memory."""
@@ -62,4 +85,20 @@ class CPU:
 
     def run(self):
         """Run the CPU."""
-        pass
+        # Load instruction
+        running = True
+
+        pc = 0
+        
+        while running:
+            instruction = self.ram[pc]
+            op1 = self.ram_read(pc+1)
+            op2 = self.ram_read(pc+2)
+
+            try:
+                action = self.instructions[instruction](op1, op2)
+                pc += action[0]
+                running = action[1]
+            except KeyError:
+                print(f'Error: {instruction} not recognized')
+                running = False
