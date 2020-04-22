@@ -14,7 +14,20 @@ class CPU:
             0b01000111: self.prn,
             0b00000001: self.hlt,
             0b10100010: self.mul,
+            0b01000101: self.push,
+            0b01000110: self.pop,
         }
+        self.SP = 7
+
+    def push(self, op1, op2):
+        self.SP -= 1
+        self.ram[self.SP] = self.reg[op1]
+        return (2, True)
+
+    def pop(self, op1, op2):
+        self.reg[op1] = self.ram[self.SP]
+        self.SP += 1
+        return (2, True)
 
     def prn(self, op1, op2):
         print(self.reg[op1])
