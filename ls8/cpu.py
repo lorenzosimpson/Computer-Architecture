@@ -7,8 +7,11 @@ class CPU:
 
     def __init__(self):
         """Construct a new CPU."""
-        self.ram = [None] * 256
-        self.reg = [None] * 8
+        self.ram = [0] * 256
+        self.reg = [0] * 8
+        self.pc = 0
+        self.reg[7] = 0xf4
+        self.sp = self.reg[7]
         self.instructions = {
             0b10000010: self.ldi,
             0b01000111: self.prn,
@@ -16,28 +19,44 @@ class CPU:
             0b10100010: self.mul,
             0b01000101: self.push,
             0b01000110: self.pop,
+            0b01010000: self.call,
+            0b00010001: self.ret,
+            0b10100000: self.add
         }
-        self.SP = 7
 
+    def call(self, op1, op2):
+        self.sp -= 1
+        self.ram[self.sp] = self.pc + 2
+        self.pc = self.reg[op1]
+        return (0, True)
+
+    def ret(self, op1, op2):
+        self.pc = self.ram[self.sp]
+        return (0, True)
+        
     def push(self, op1, op2):
-        self.SP -= 1
-        self.ram[self.SP] = self.reg[op1]
+        self.sp -= 1
+        self.ram[self.sp] = self.reg[op1]
         return (2, True)
 
     def pop(self, op1, op2):
-        self.reg[op1] = self.ram[self.SP]
-        self.SP += 1
+        self.reg[op1] = self.ram[self.sp]
+        self.sp += 1
         return (2, True)
-
-    def prn(self, op1, op2):
-        print(self.reg[op1])
-        return (2, True)
+        
+    def ldi(self, op1, op2):
+        self.reg[op1] = op2
+        return (3, True) # will keep running
     
     def hlt(self, op1, op2):
         return (0, False)
     
-    def ldi(self, op1, op2):
-        self.reg[op1] = op2
+    def prn(self, op1, op2):
+        print(self.reg[op1])
+        return (2, True)
+    
+    def mul(self, op1, op2):
+        self.alu('MUL', op1, op2)
         return (3, True)
 
     def ram_read(self, address):
@@ -46,26 +65,27 @@ class CPU:
     def ram_write(self, address, value):
         self.ram[address] = value
 
-    def mul(self, reg_a, reg_b):
-        self.alu('MUL', reg_a, reg_b)
+    def add(self, op1, op2):
+        self.alu('ADD', op1, op2)
         return (3, True)
 
-    def load(self):
+    def load(self, program):
         """Load a program into memory."""
 
         address = 0
 
-        file_name = sys.argv[1]
 
-        with open(file_name) as f:
+        with open(program) as f:
             for line in f:
+
                 line_string = line.split('#')[0].strip()
-                if line_string == '':
-                    continue
-                inst = int(line_string, 2)
-                
-                self.ram[address] = inst
-                address += 1
+               
+                try:
+                    self.ram_write(address, int(line_string, 2))
+                    address += 1
+                except ValueError:
+                    pass
+        f.close()
 
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
@@ -104,16 +124,18 @@ class CPU:
         # Load instruction
         running = True
 
-        pc = 0
+   
+
         
         while running:
-            instruction = self.ram[pc]
-            op1 = self.ram_read(pc+1)
-            op2 = self.ram_read(pc+2)
+            instruction = self.ram[self.pc]
+            op1 = self.ram_read(self.pc+1)
+            op2 = self.ram_read(self.pc+2)
+
 
             try:
                 action = self.instructions[instruction](op1, op2)
-                pc += action[0]
+                self.pc += action[0]
                 running = action[1]
             except KeyError:
                 print(f'Error: {instruction} not recognized')
