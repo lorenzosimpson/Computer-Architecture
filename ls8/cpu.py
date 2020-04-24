@@ -7,38 +7,146 @@ class CPU:
 
     def __init__(self):
         """Construct a new CPU."""
-        pass
+        self.ram = [0] * 256
+        self.reg = [0] * 8
+        self.pc = 0
+        self.reg[7] = 0xf4
+        self.sp = self.reg[7]
+        self.instructions = {
+            0b10000010: self.ldi,
+            0b01000111: self.prn,
+            0b00000001: self.hlt,
+            0b10100010: self.mul,
+            0b01000101: self.push,
+            0b01000110: self.pop,
+            0b01010000: self.call,
+            0b00010001: self.ret,
+            0b10100000: self.add,
+            0b10100111: self.comp,
+            0b01010101: self.jeq,
+            0b01010110: self.jne,
+            0b01010100: self.jmp
+        }
+        self.flags = {
+            'E': 0,
+            'G': 0,
+            'L': 0,
+        }
 
-    def load(self):
+    def comp(self, op1, op2):
+        self.alu('CMP', op1, op2)
+        return (3, True)
+
+    def jne(self, op1, op2):
+        if self.flags['E'] == 0:
+            self.pc = self.reg[op1]
+            return (0, True)
+        else:
+            return (2, True)
+
+    def jeq(self, op1, op2):
+        if self.flags['E'] == 1:
+            self.pc = self.reg[op1]
+            return (0, True)
+        else:
+            return (2, True)
+
+    def jmp(self, op1, op2):
+        self.pc = self.reg[op1]
+        return (0, True)
+
+    def call(self, op1, op2):
+        self.sp -= 1
+        self.ram[self.sp] = self.pc + 2
+        self.pc = self.reg[op1]
+        return (0, True)
+
+    def ret(self, op1, op2):
+        self.pc = self.ram[self.sp]
+        return (0, True)
+        
+    def push(self, op1, op2):
+        self.sp -= 1
+        self.ram[self.sp] = self.reg[op1]
+        return (2, True)
+
+    def pop(self, op1, op2):
+        self.reg[op1] = self.ram[self.sp]
+        self.sp += 1
+        return (2, True)
+        
+    def ldi(self, op1, op2):
+        self.reg[op1] = op2
+        return (3, True) # will keep running
+    
+    def hlt(self, op1, op2):
+        return (0, False)
+    
+    def prn(self, op1, op2):
+        print(self.reg[op1])
+        return (2, True)
+    
+    def mul(self, op1, op2):
+        self.alu('MUL', op1, op2)
+        return (3, True)
+
+    def ram_read(self, address):
+        return self.ram[address]
+    
+    def ram_write(self, address, value):
+        self.ram[address] = value
+
+    def add(self, op1, op2):
+        self.alu('ADD', op1, op2)
+        return (3, True)
+
+    def load(self, program):
         """Load a program into memory."""
 
         address = 0
 
-        # For now, we've just hardcoded a program:
 
-        program = [
-            # From print8.ls8
-            0b10000010, # LDI R0,8
-            0b00000000,
-            0b00001000,
-            0b01000111, # PRN R0
-            0b00000000,
-            0b00000001, # HLT
-        ]
+        with open(program) as f:
+            for line in f:
 
-        for instruction in program:
-            self.ram[address] = instruction
-            address += 1
-
+                line_string = line.split('#')[0].strip()
+               
+                try:
+                    self.ram_write(address, int(line_string, 2))
+                    address += 1
+                except ValueError:
+                    pass
+        f.close()
 
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
 
         if op == "ADD":
             self.reg[reg_a] += self.reg[reg_b]
-        #elif op == "SUB": etc
+        elif op == 'MUL':
+            self.reg[reg_a] *= self.reg[reg_b]
+        elif op == 'CMP':
+            if self.reg[reg_a] < self.reg[reg_b]:
+                #set less than L flag to 1
+                self.flags['L'] = 1
+                # set greater than flag to 0
+                self.flags['G'] = 0
+                # set equal to flag to 0
+                self.flags['E'] = 0
+
+            elif self.reg[reg_a] > self.reg[reg_b]:
+                # set greater than flag to 1
+                self.flags['G'] = 1
+                # set less than flag to 0
+                self.flags['L'] = 0
+                # set equal to flag to 0
+                self.flags['E'] = 0
+            else:
+                # set equal to flag to 1
+                self.flags['E'] = 1
         else:
             raise Exception("Unsupported ALU operation")
+
 
     def trace(self):
         """
@@ -59,7 +167,23 @@ class CPU:
             print(" %02X" % self.reg[i], end='')
 
         print()
+        
 
     def run(self):
         """Run the CPU."""
-        pass
+        # Load instruction
+        running = True
+        
+        while running:
+            instruction = self.ram[self.pc]
+            op1 = self.ram_read(self.pc+1)
+            op2 = self.ram_read(self.pc+2)
+
+
+            try:
+                action = self.instructions[instruction](op1, op2)
+                self.pc += action[0]
+                running = action[1]
+            except KeyError:
+                print(f'Error: {instruction} not recognized')
+                running = False
