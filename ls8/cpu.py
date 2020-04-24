@@ -21,8 +21,39 @@ class CPU:
             0b01000110: self.pop,
             0b01010000: self.call,
             0b00010001: self.ret,
-            0b10100000: self.add
+            0b10100000: self.add,
+            0b10100111: self.comp,
+            0b01010101: self.jeq,
+            0b01010110: self.jne,
+            0b01010100: self.jmp
         }
+        self.flags = {
+            'E': 0,
+            'G': 0,
+            'L': 0,
+        }
+
+    def comp(self, op1, op2):
+        self.alu('CMP', op1, op2)
+        return (3, True)
+
+    def jne(self, op1, op2):
+        if self.flags['E'] == 0:
+            self.pc = self.reg[op1]
+            return (0, True)
+        else:
+            return (2, True)
+
+    def jeq(self, op1, op2):
+        if self.flags['E'] == 1:
+            self.pc = self.reg[op1]
+            return (0, True)
+        else:
+            return (2, True)
+
+    def jmp(self, op1, op2):
+        self.pc = self.reg[op1]
+        return (0, True)
 
     def call(self, op1, op2):
         self.sp -= 1
@@ -94,6 +125,25 @@ class CPU:
             self.reg[reg_a] += self.reg[reg_b]
         elif op == 'MUL':
             self.reg[reg_a] *= self.reg[reg_b]
+        elif op == 'CMP':
+            if self.reg[reg_a] < self.reg[reg_b]:
+                #set less than L flag to 1
+                self.flags['L'] = 1
+                # set greater than flag to 0
+                self.flags['G'] = 0
+                # set equal to flag to 0
+                self.flags['E'] = 0
+
+            elif self.reg[reg_a] > self.reg[reg_b]:
+                # set greater than flag to 1
+                self.flags['G'] = 1
+                # set less than flag to 0
+                self.flags['L'] = 0
+                # set equal to flag to 0
+                self.flags['E'] = 0
+            else:
+                # set equal to flag to 1
+                self.flags['E'] = 1
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -123,9 +173,6 @@ class CPU:
         """Run the CPU."""
         # Load instruction
         running = True
-
-   
-
         
         while running:
             instruction = self.ram[self.pc]
